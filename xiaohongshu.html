@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="icon" type="image/png" sizes="180x180" href="xiaohongshu-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="xiaohongshu-icon.png">
+  <title>小红书三图生成器</title>
+  <style>
+    :root {
+      --ink: #1f2523;
+      --muted: #6e7672;
+      --line: #dfe4df;
+      --paper: #f6f7f4;
+      --panel: #ffffff;
+      --accent: #ef5b49;
+      --accent-soft: #fff0ec;
+      --shadow: 0 12px 36px rgba(31, 37, 35, .08);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    button, input, textarea, select { font: inherit; }
+    input, textarea, select { font-size: 16px; }
+    button { touch-action: manipulation; }
+    button { cursor: pointer; }
+    .app-shell { min-height: 100vh; }
+    .topbar {
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.92);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      backdrop-filter: blur(12px);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .brand-mark {
+      width: 32px; height: 32px; display: grid; place-items: center;
+      color: #fff; background: var(--accent); border-radius: 9px;
+      font-weight: 800; font-size: 14px;
+    }
+    .brand strong { font-size: 16px; letter-spacing: .02em; }
+    .topbar-note { color: var(--muted); font-size: 13px; }
+    .workspace {
+      width: min(1480px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 28px 0 54px;
+      display: grid;
+      grid-template-columns: minmax(320px, 410px) minmax(0, 1fr);
+      gap: 32px;
+      align-items: start;
+    }
+    .controls {
+      display: grid;
+      gap: 14px;
+      position: sticky;
+      top: 94px;
+    }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .panel-section { padding: 20px; border-bottom: 1px solid var(--line); }
+    .panel-section:last-child { border-bottom: 0; }
+    .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .section-heading h2 { margin: 0; font-size: 15px; letter-spacing: .01em; }
+    .section-heading span { color: var(--muted); font-size: 12px; }
+    label { display: block; margin: 0 0 8px; color: #4f5854; font-size: 12px; font-weight: 650; }
+    textarea, input, select {
+      width: 100%; border: 1px solid var(--line); border-radius: 6px; outline: none;
+      color: var(--ink); background: #fbfcfa; padding: 11px 12px; transition: border-color .18s, box-shadow .18s;
+    }
+    textarea:focus, input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    textarea { min-height: 115px; resize: vertical; line-height: 1.65; }
+    .input-group + .input-group { margin-top: 15px; }
+    .helper { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .clear-field { display: block; margin: 8px 0 0; padding: 6px 11px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--muted); font-size: 12px; }
+    .clear-field:hover { border-color: #b6c0ba; color: var(--ink); }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .theme-btn {
+      padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; overflow: hidden; text-align: left;
+    }
+    .theme-btn.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+    .theme-swatch { height: 35px; display: block; }
+    .theme-name { display: block; padding: 7px 8px; font-size: 11px; color: #59625e; }
+    .theme-swatch.clean { background: linear-gradient(135deg, #fff 0 65%, #f1b94c 65%); }
+    .theme-swatch.ink { background: linear-gradient(135deg, #18211f 0 65%, #c9e6d6 65%); }
+    .theme-swatch.coral { background: linear-gradient(135deg, #fff5ee 0 65%, #ef5b49 65%); }
+    .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .switch-row label { margin: 0; font-size: 13px; color: var(--ink); }
+    .switch { position: relative; width: 42px; height: 24px; flex: 0 0 auto; }
+    .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; border-radius: 99px; background: #cbd2ce; transition: .2s; }
+    .slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; border-radius: 50%; background: #fff; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+    .switch input:checked + .slider { background: var(--accent); }
+    .switch input:checked + .slider::before { transform: translateX(18px); }
+    .button-row { display: flex; gap: 8px; }
+    .btn { min-height: 40px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-weight: 650; font-size: 13px; }
+    .btn:hover { border-color: #b6c0ba; background: #fafbf9; }
+    .btn.primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .btn.primary:hover { filter: brightness(.96); }
+    .btn:disabled { cursor: wait; opacity: .55; }
+    .btn.full { width: 100%; }
+    .preview-area { min-width: 0; }
+    .preview-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 16px; }
+    .preview-head h1 { margin: 0; font-size: 24px; letter-spacing: -.02em; }
+    .preview-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+    .preview-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: end; }
+    .preview-actions .btn { white-space: nowrap; }
+    .canvas-grid { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 18px; align-items: start; }
+    .poster-card { min-width: 0; }
+    .poster-frame { position: relative; overflow: hidden; background: #fff; border-radius: 8px; box-shadow: 0 16px 34px rgba(31,37,35,.13); }
+    .poster-frame canvas { display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; }
+    .poster-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 2px 0; color: var(--muted); font-size: 12px; }
+    .status-line { min-height: 17px; margin-top: 13px; color: var(--muted); font-size: 12px; }
+    .status-line strong { color: var(--accent); }
+    .tip { display: flex; gap: 10px; padding: 13px 15px; background: #f1f5f0; border-left: 3px solid #86af94; color: #53645a; font-size: 12px; line-height: 1.55; border-radius: 5px; }
+    .tip b { color: #314d3a; }
+    @media (max-width: 1050px) {
+      .workspace { grid-template-columns: 340px minmax(0, 1fr); gap: 22px; }
+      .canvas-grid { gap: 12px; }
+      .preview-head { display: block; }
+      .preview-actions { justify-content: start; margin-top: 14px; }
+    }
+    @media (max-width: 760px) {
+      .topbar { height: 58px; padding: 0 16px; }
+      .topbar-note { display: none; }
+      .workspace { width: 100%; padding: 18px 14px 34px; display: flex; flex-direction: column; gap: 22px; }
+      .controls { width: 100%; position: static; order: 1; }
+      .preview-area { order: 2; width: 100%; }
+      .preview-head h1 { font-size: 21px; }
+      .canvas-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+      .poster-frame { border-radius: 5px; }
+      .poster-meta { padding-top: 7px; font-size: 11px; }
+      .panel-section { padding: 16px; }
+    }
+    @media (max-width: 430px) {
+      .canvas-grid { grid-template-columns: 1fr; gap: 18px; }
+      .poster-card { max-width: 340px; width: 100%; margin: 0 auto; }
+      .poster-meta { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">3图</span><strong>小红书三图生成器</strong></div>
+      <span class="topbar-note">文字排版 · 1080 × 1440</span>
+    </header>
+
+    <main class="workspace">
+      <aside class="controls">
+        <section class="panel">
+          <div class="panel-section">
+            <div class="section-heading"><h2>内容输入</h2><span id="countHint">0 / 0 字</span></div>
+            <div class="input-group">
+              <label for="coverText">第一段 · 封面内容</label>
+              <textarea id="coverText" placeholder="例如：教招面试《做自尊的人》&#10;高分试讲心得">教招面试《做自尊的人》
+高分试讲心得</textarea><button class="clear-field under" data-clear-target="coverText" type="button">清空</button>
+              <p class="helper">标题和正文都可以较长，工具会按段落自动缩小并完整排版到图一。</p>
+            </div>
+            <div class="input-group">
+              <label for="bodyText">第二段 · 正文内容</label>
+              <textarea id="bodyText" placeholder="粘贴正文，工具会自动拆成第 2、3 张图">道法试讲想拿高分，“素材新”绝对是加分项！
+
+我用 2026 年高考刷屏全网的贺永辉素材：一个土鸡蛋接考、婉拒所有捐款、回母校免费补课，一句话“把资源留给真正需要的人”，瞬间打动考官！
+
+课堂互动必须“真”起来：自由发言、小组讨论、情景模拟，让热点素材和沉浸式互动自然连起来。</textarea><button class="clear-field under" data-clear-target="bodyText" type="button">清空</button>
+              <p class="helper">正文会按换行和可读长度自动分到第 2、3 张图。</p>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="section-heading"><h2>排版设置</h2><span>实时更新</span></div>
+            <div class="two-col">
+              <div><label for="fontSelect">字体</label><select id="fontSelect"><option value="sans">现代黑体</option><option value="serif">清晰宋体</option><option value="rounded">圆润黑体</option></select></div>
+              <div><label for="densitySelect">文字密度</label><select id="densitySelect"><option value="comfortable">舒适</option><option value="dense">紧凑</option><option value="airy">留白</option></select></div>
+            </div>
+            <div style="margin-top: 15px"><label>视觉主题</label><div class="theme-grid" id="themeGrid">
+              <button class="theme-btn active" data-theme="clean" type="button"><span class="theme-swatch clean"></span><span class="theme-name">清爽留白</span></button>
+              <button class="theme-btn" data-theme="ink" type="button"><span class="theme-swatch ink"></span><span class="theme-name">墨绿重点</span></button>
+              <button class="theme-btn" data-theme="coral" type="button"><span class="theme-swatch coral"></span><span class="theme-name">珊瑚醒目</span></button>
+            </div></div>
+            <div class="switch-row" style="margin-top: 17px"><label for="emojiToggle">保留 Emoji 表情</label><label class="switch"><input id="emojiToggle" type="checkbox" checked><span class="slider"></span></label></div>
+          </div>
+
+          <div class="panel-section">
+            <div class="button-row"><button id="exampleBtn" class="btn" type="button">载入示例</button><button id="clearBtn" class="btn" type="button">清空内容</button><button id="saveBtn" class="btn primary" type="button">保存草稿</button></div>
+          </div>
+        </section>
+        <div class="tip"><b>小提示</b><span>点击“打开图片保存页”，在每张图片上长按，选择“存储到照片”。</span></div>
+      </aside>
+
+      <section class="preview-area">
+        <div class="preview-head">
+          <div><h1>你的笔记预览</h1><p>封面 + 自动拆分的两张正文图</p></div>
+          <div class="preview-actions"><button id="downloadAllBtn" class="btn primary" type="button">打开图片保存页</button><button id="resetBtn" class="btn" type="button">恢复示例</button></div>
+        </div>
+        <div class="canvas-grid">
+          <article class="poster-card"><div class="poster-frame"><canvas id="canvas1" width="1080" height="1440"></canvas></div><div class="poster-meta"><span>01 · 封面</span></div></article>
+          <article class="poster-card"><div class="poster-frame"><canvas id="canvas2" width="1080" height="1440"></canvas></div><div class="poster-meta"><span>02 · 正文</span></div></article>
+          <article class="poster-card"><div class="poster-frame"><canvas id="canvas3" width="1080" height="1440"></canvas></div><div class="poster-meta"><span>03 · 正文</span></div></article>
+        </div>
+        <div class="status-line" id="statusLine">已自动保存到本机浏览器</div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const WIDTH = 1080;
+      const HEIGHT = 1440;
+      const coverText = document.querySelector('#coverText');
+      const bodyText = document.querySelector('#bodyText');
+      const fontSelect = document.querySelector('#fontSelect');
+      const densitySelect = document.querySelector('#densitySelect');
+      const emojiToggle = document.querySelector('#emojiToggle');
+      const countHint = document.querySelector('#countHint');
+      const statusLine = document.querySelector('#statusLine');
+      const canvases = [1, 2, 3].map(n => document.querySelector('#canvas' + n));
+      const example = {
+        cover: `🔥教招面试《做自尊的人》高分试讲心得✨
+
+道法试讲想拿高分，“素材新”绝对是加分项！
+
+我用2026年高考刷屏全网的贺永辉素材——八个土鸡蛋接考、婉拒所有捐款、回母校免费补课，一句“把资源留给真正需要的人”瞬间打动考官！素材够新够有温度，考官耳朵竖起来了！👂
+
+课堂互动必须“真”起来👇
+✅ 自由发言：从拒捐态度拆解维护人格尊严的三种方法
+✅ 小组讨论：多组补充如何通过学习与历练提升自己
+✅ 情景模拟：同桌对话“为何帮别人”，讲透尊重他人的真谛
+
+把“维护尊严—提升自己—尊重他人”的逻辑链串得丝滑流畅！🔗紧扣热点素材+沉浸式互动，这课很难不得高分！💯
+
+这课试讲稿已整理好，有需要宝子可以找我哈！🙋‍♀️`,
+        body: `《人须有自尊》无生试讲逐字稿
+试讲素材：贺永辉高考拒捐案（2026年）
+一、新课导入
+师：上课，同学们好，请坐！
+师：同学们，今年高考期间，有一段视频看哭了无数网友。画面里，一位父亲凌晨从大山出发，徒步一个多小时山路，又辗转三个小时大巴，背着蛇皮袋，怀揣八个自家土鸡蛋赶到考场接儿子。走出考场的少年接过鸡蛋，剥开第一口先递给了父亲。这个少年叫贺永辉，他患有先天性马蹄足外翻，历经三次大手术才学会走路，今年高考考出了526分，超本科线126分。
+师：走红后，大量网友和企业想捐款资助他，可父子俩一一婉拒了。父亲说：“捐款只能帮一时，帮不了一世，我还能干活，我们可以自力更生。”贺永辉也说：“希望把资源留给真正需要雪中送炭的人。”
+师：八个土鸡蛋的感恩让人动容，拒绝捐款的骨气更让人敬佩。贺永辉身上藏着一种什么力量？今天，让我们一起走进新课——《人须有自尊》。
+二、新课讲授
+环节一：认识自尊的内涵
+师：同学们，我们先看贺永辉面对困境和捐款时的态度。他历经三次大手术才学会走路，母亲因病丧失劳动能力，全家靠六十岁的父亲打零工维持生活。可当爱心涌来时，他选择婉拒，说“人就是要靠自己努力才行，别人只能帮你一时”。他的这份坚持，也让无数网友从想捐款变成了发自内心的敬佩。
+师：从贺永辉对待自己的态度和别人对他的态度中，你觉得自尊到底是什么？请大家结合素材，自由发言。给大家1分钟思考。
+师：好，请这位举手的同学。
+师：你认为贺永辉虽然身体有缺陷、家里困难，但不轻看自己，坚信靠自己就能改变命运，这就是自尊。嗯，你抓得很准。贺永辉不因困境而自我否定，坚信奋斗能改变命运，这份对自我价值的肯定，就是自尊的内核——自我尊重。
+师：还有同学想谈谈别人对他的态度吗？好，课代表。
+师：你发现网友从想捐款变成敬佩他，说明他用自己的行动赢得了别人的尊重。不错，你注意到了这个变化。自尊的另一层含义，就是赢得他人的尊重。贺永辉靠自力更生获得了全社会的认可。所以说，自尊是对自我价值的肯定，包括自我尊重和赢得他人的尊重。
+师：好，自尊的内涵我们弄清楚了。那自尊的人到底有哪些表现呢？我们接着往下看。`
+      };
+      const state = { theme: 'clean', font: 'sans', density: 'comfortable', keepEmoji: true };
+      const themes = {
+        clean: { bg: '#fffdfa', ink: '#202725', muted: '#6c756f', accent: '#e7ad37', line: '#e9e6de' },
+        ink: { bg: '#f5f8f4', ink: '#20332b', muted: '#5e7267', accent: '#5e9c76', line: '#d8e5db' },
+        coral: { bg: '#fff8f3', ink: '#30231f', muted: '#79635a', accent: '#ed6653', line: '#f0ddd5' }
+      };
+      function fontFamily() {
+        if (state.font === 'serif') return '"Songti SC", "SimSun", serif';
+        if (state.font === 'rounded') return '"Arial Rounded MT Bold", "Microsoft YaHei", sans-serif';
+        return '"PingFang SC", "Microsoft YaHei", sans-serif';
+      }
+
+      function cleanText(value) {
+        if (state.keepEmoji) return value.trim();
+        return value.replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu, '').replace(/ {2,}/g, ' ').trim();
+      }
+
+      function wrapLines(ctx, text, maxWidth) {
+        const lines = [];
+        const paragraphs = text.replace(/\r/g, '').split('\n');
+        paragraphs.forEach((paragraph, paragraphIndex) => {
+          if (!paragraph) { if (paragraphIndex < paragraphs.length - 1) lines.push(''); return; }
+          let line = '';
+          for (const char of paragraph) {
+            const next = line + char;
+            if (line && ctx.measureText(next).width > maxWidth) { lines.push(line); line = char; }
+            else line = next;
+          }
+          if (line) lines.push(line);
+          if (paragraphIndex < paragraphs.length - 1 && lines[lines.length - 1] !== '') lines.push('');
+        });
+        return lines;
+      }
+
+      function splitBody(text) {
+        const normalized = (text || '').replace(/\r/g, '');
+        if (!normalized) return ['', ''];
+        const halfway = Math.floor(normalized.length / 2);
+        const breaks = [];
+        for (let index = normalized.indexOf('\n'); index >= 0; index = normalized.indexOf('\n', index + 1)) breaks.push(index + 1);
+        const splitAt = breaks.length ? breaks.reduce((best, point) => Math.abs(point - halfway) < Math.abs(best - halfway) ? point : best, breaks[0]) : halfway;
+        return [normalized.slice(0, splitAt).trim(), normalized.slice(splitAt).trim()];
+      }
+
+      function drawWrapped(ctx, lines, x, y, lineHeight, color, align = 'left') {
+        ctx.fillStyle = color;
+        ctx.textAlign = align;
+        lines.forEach(line => { if (line) ctx.fillText(line, x, y); y += lineHeight; });
+        return y;
+      }
+
+      function fitTextBlock(ctx, paragraphs, maxWidth, startY, endY, baseSize, minSize, weight) {
+        let best = null;
+        for (let size = baseSize; size >= minSize; size -= 2) {
+          ctx.font = weight + ' ' + size + 'px ' + fontFamily();
+          const lines = [];
+          paragraphs.forEach((paragraph, index) => {
+            lines.push(...wrapLines(ctx, paragraph, maxWidth));
+            if (index < paragraphs.length - 1) lines.push('');
+          });
+          const lineHeight = Math.round(size * 1.45);
+          const usedHeight = lines.reduce((total, line) => total + (line ? lineHeight : lineHeight * .55), 0);
+          best = { lines, lineHeight, size };
+          if (startY + usedHeight <= endY) return best;
+        }
+        return best;
+      }
+
+      function drawBackground(ctx, theme) {
+        ctx.fillStyle = theme.bg;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.strokeStyle = theme.line;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(38, 38, WIDTH - 76, HEIGHT - 76);
+        ctx.fillStyle = theme.accent;
+        ctx.fillRect(70, 70, 92, 12);
+      }
+
+      function drawCover(canvas, text) {
+        const ctx = canvas.getContext('2d');
+        const theme = themes[state.theme];
+        drawBackground(ctx, theme);
+        ctx.textBaseline = 'top';
+        const paragraphs = (text || '请输入封面内容').replace(/\r/g, '').split(/\n\s*\n/).filter(Boolean);
+        const title = paragraphs.shift() || '请输入封面内容';
+        const titleFit = fitTextBlock(ctx, [title], 900, 125, 275, 66, 44, '700');
+        ctx.fillStyle = theme.ink;
+        ctx.font = '700 ' + titleFit.size + 'px ' + fontFamily();
+        drawWrapped(ctx, titleFit.lines, 90, 125, titleFit.lineHeight, theme.ink);
+        ctx.fillStyle = theme.accent;
+        ctx.fillRect(90, 305, 150, 8);
+        const bodyFit = fitTextBlock(ctx, paragraphs.length ? paragraphs : ['请输入正文内容'], 900, 355, 1330, 38, 22, '400');
+        ctx.font = '400 ' + bodyFit.size + 'px ' + fontFamily();
+        ctx.fillStyle = theme.muted;
+        let y = 355;
+        bodyFit.lines.forEach(line => {
+          if (line) ctx.fillText(line, 110, y);
+          y += line ? bodyFit.lineHeight : bodyFit.lineHeight * .55;
+        });
+      }
+
+      function drawBody(canvas, text) {
+        const ctx = canvas.getContext('2d');
+        const theme = themes[state.theme];
+        drawBackground(ctx, theme);
+        ctx.textBaseline = 'top';
+        const bodyFit = fitTextBlock(ctx, [text || '请输入正文内容'], 900, 110, 1330, 42, 22, '400');
+        ctx.font = '400 ' + bodyFit.size + 'px ' + fontFamily();
+        ctx.fillStyle = theme.muted;
+        let y = 110;
+        bodyFit.lines.forEach(line => {
+          if (line) ctx.fillText(line, 90, y);
+          y += line ? bodyFit.lineHeight : bodyFit.lineHeight * .55;
+        });
+      }
+
+      function render() {
+        const cover = cleanText(coverText.value);
+        const body = cleanText(bodyText.value);
+        const pages = splitBody(body);
+        drawCover(canvases[0], cover);
+        drawBody(canvases[1], pages[0]);
+        drawBody(canvases[2], pages[1]);
+        const total = cover.length + body.length;
+        countHint.textContent = cover.length + ' / ' + body.length + ' 字';
+        statusLine.textContent = '已自动保存到本机浏览器 · 共 ' + total + ' 字';
+        persist();
+      }
+
+      function persist() {
+        try { localStorage.setItem('xhs-three-image-draft-v2', JSON.stringify({ cover: coverText.value, body: bodyText.value, ...state })); } catch (_) {}
+      }
+      function restore() {
+        try {
+          const saved = JSON.parse(localStorage.getItem('xhs-three-image-draft-v2') || 'null');
+          if (!saved) {
+            coverText.value = example.cover;
+            bodyText.value = example.body;
+            return;
+          }
+          coverText.value = saved.cover || coverText.value;
+          bodyText.value = saved.body || bodyText.value;
+          Object.assign(state, { theme: saved.theme || state.theme, font: saved.font || state.font, density: saved.density || state.density, keepEmoji: saved.keepEmoji !== false });
+          fontSelect.value = state.font; densitySelect.value = state.density; emojiToggle.checked = state.keepEmoji;
+          document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.theme === state.theme));
+        } catch (_) {}
+      }
+      function showManualSaveView() {
+        const oldView = document.querySelector('#manualSaveView');
+        if (oldView) oldView.remove();
+        const view = document.createElement('div');
+        view.id = 'manualSaveView';
+        view.style.cssText = 'position:fixed;inset:0;z-index:20;overflow:auto;background:#f6f7f4;padding:calc(18px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;';
+        const panel = document.createElement('div');
+        panel.style.cssText = 'max-width:620px;margin:0 auto;background:#fff;border:1px solid #dfe4df;border-radius:8px;padding:18px;box-shadow:0 12px 36px rgba(31,37,35,.12);';
+        const heading = document.createElement('div');
+        heading.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;';
+        const title = document.createElement('strong');
+        title.textContent = '保存三张图片';
+        title.style.fontSize = '18px';
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.textContent = '关闭';
+        close.style.cssText = 'border:0;background:#f1f3f0;border-radius:6px;padding:9px 12px;color:#26302c;font-size:14px;';
+        close.addEventListener('click', () => view.remove());
+        heading.append(title, close);
+        const note = document.createElement('p');
+        note.textContent = '请在每张图片上长按，选择“存储到照片”。';
+        note.style.cssText = 'margin:0 0 14px;color:#6e7672;font-size:14px;line-height:1.5;';
+        panel.append(heading, note);
+        canvases.forEach((canvas, index) => {
+          const label = document.createElement('div');
+          label.textContent = '第 ' + (index + 1) + ' 张';
+          label.style.cssText = 'margin:16px 0 7px;color:#4f5854;font-size:13px;font-weight:650;';
+          const image = document.createElement('img');
+          image.src = canvas.toDataURL('image/png');
+          image.alt = '小红书笔记第 ' + (index + 1) + ' 张';
+          image.draggable = false;
+          image.style.cssText = 'display:block;width:100%;height:auto;border:1px solid #e3e7e3;border-radius:5px;-webkit-touch-callout:default;user-select:none;';
+          panel.append(label, image);
+        });
+        view.appendChild(panel);
+        document.body.appendChild(view);
+      }
+      function shareAllImages() {
+        showManualSaveView();
+      }
+      function loadExample() { coverText.value = example.cover; bodyText.value = example.body; render(); }
+
+      [coverText, bodyText].forEach(el => el.addEventListener('input', render));
+      document.querySelectorAll('[data-clear-target]').forEach(button => button.addEventListener('click', () => {
+        const target = document.querySelector('#' + button.dataset.clearTarget);
+        target.value = '';
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        target.focus();
+      }));
+      fontSelect.addEventListener('change', e => { state.font = e.target.value; render(); });
+      densitySelect.addEventListener('change', e => { state.density = e.target.value; render(); });
+      emojiToggle.addEventListener('change', e => { state.keepEmoji = e.target.checked; render(); });
+      document.querySelectorAll('.theme-btn').forEach(btn => btn.addEventListener('click', () => {
+        state.theme = btn.dataset.theme;
+        document.querySelectorAll('.theme-btn').forEach(item => item.classList.toggle('active', item === btn));
+        render();
+      }));
+      document.querySelector('#exampleBtn').addEventListener('click', loadExample);
+      document.querySelector('#resetBtn').addEventListener('click', loadExample);
+      document.querySelector('#clearBtn').addEventListener('click', () => { coverText.value = ''; bodyText.value = ''; render(); });
+      document.querySelector('#saveBtn').addEventListener('click', () => { persist(); statusLine.innerHTML = '<strong>草稿已保存</strong> · 内容只保存在当前浏览器'; });
+      document.querySelector('#downloadAllBtn').addEventListener('click', shareAllImages);
+      restore();
+      render();
+    })();
+  </script>
+</body>
+</html>
