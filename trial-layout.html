@@ -120,6 +120,9 @@
       background: #fff;
     }
     input[type="color"] { padding: 3px; }
+    .color-palette { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .color-preset { width: 24px; height: 24px; padding: 0; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #cfd6d2; }
+    .color-preset.active { box-shadow: 0 0 0 2px var(--ink); }
     .switch-row {
       display: flex;
       justify-content: space-between;
@@ -301,16 +304,13 @@
         <div class="field">
           <label for="fontFamily">正文字体</label>
           <select id="fontFamily" class="control">
-            <optgroup label="中文字体">
-              <option value='SimSun, "Songti SC", serif'>宋体</option>
-              <option value='FangSong, STFangsong, serif'>仿宋</option>
-              <option value='KaiTi, "Kaiti SC", serif'>楷体</option>
-              <option value='SimHei, "Heiti SC", sans-serif'>黑体</option>
-              <option value='"Microsoft YaHei", "PingFang SC", sans-serif'>微软雅黑</option>
-              <option value='STXingkai, "华文行楷", KaiTi, serif'>华文行楷</option>
-              <option value='STKaiti, "华文楷体", KaiTi, serif'>华文楷体</option>
-              <option value='STSong, "华文宋体", SimSun, serif'>华文宋体</option>
-              <option value='STZhongsong, "华文中宋", SimSun, serif'>华文中宋</option>
+            <optgroup label="中文字体（Safari 可用）">
+              <option value='"Songti SC", STSong, SimSun, serif'>宋体</option>
+              <option value='"Kaiti SC", STKaiti, KaiTi, serif'>楷体</option>
+              <option value='"PingFang SC", "Heiti SC", STHeiti, sans-serif'>黑体</option>
+              <option value='-apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif'>苹方</option>
+              <option value='"Hiragino Sans GB", "PingFang SC", sans-serif'>冬青黑体</option>
+              <option value='Georgia, "Songti SC", serif'>雅致衬线</option>
             </optgroup>
             <optgroup label="英文字体">
               <option value='Arial, Helvetica, sans-serif'>Arial</option>
@@ -329,6 +329,16 @@
         <div class="field">
           <label for="highlightColor">标题高亮</label>
           <input id="highlightColor" class="control" type="color" value="#38ddd5">
+          <div class="color-palette" aria-label="标题配色">
+            <button class="color-preset active" type="button" data-color-preset="#38ddd5" style="background:#38ddd5" aria-label="青绿"></button>
+            <button class="color-preset" type="button" data-color-preset="#ffce56" style="background:#ffce56" aria-label="金黄"></button>
+            <button class="color-preset" type="button" data-color-preset="#ff9f8c" style="background:#ff9f8c" aria-label="珊瑚橙"></button>
+            <button class="color-preset" type="button" data-color-preset="#f7a6c5" style="background:#f7a6c5" aria-label="樱花粉"></button>
+            <button class="color-preset" type="button" data-color-preset="#b4a7f4" style="background:#b4a7f4" aria-label="薰衣草紫"></button>
+            <button class="color-preset" type="button" data-color-preset="#9ed9f0" style="background:#9ed9f0" aria-label="天空蓝"></button>
+            <button class="color-preset" type="button" data-color-preset="#a9d7a5" style="background:#a9d7a5" aria-label="鼠尾草绿"></button>
+            <button class="color-preset" type="button" data-color-preset="#e5b878" style="background:#e5b878" aria-label="暖杏色"></button>
+          </div>
         </div>
         <div class="field">
           <label for="maxFont">起始字号</label>
@@ -1592,6 +1602,12 @@
     document.getElementById('nextBatch').addEventListener('click',()=>showBatchItem(batchIndex+1));
     els.batchExport.addEventListener('click',exportBatchWord);
     [els.font,els.color,els.maxFont,els.minFont,els.targetPages,els.autoBoard].forEach(el=>el.addEventListener('change',layout));
+    els.font.addEventListener('input', layout);
+    document.querySelectorAll('[data-color-preset]').forEach(button => button.addEventListener('click', () => {
+      els.color.value = button.dataset.colorPreset;
+      document.querySelectorAll('[data-color-preset]').forEach(item => item.classList.toggle('active', item === button));
+      layout();
+    }));
     els.boardStyle.addEventListener('change',()=>{ saveCurrentBatchItem(); layout(); updateBatchControls(); });
     document.getElementById('shuffleBoard').addEventListener('click',()=>{ boardVariantOffset += 1; layout(); });
     let inputTimer;
