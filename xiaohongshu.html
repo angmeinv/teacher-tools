@@ -90,7 +90,7 @@
     .clear-field { display: block; margin: 8px 0 0; padding: 6px 11px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--muted); font-size: 12px; }
     .clear-field:hover { border-color: #b6c0ba; color: var(--ink); }
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 420px; overflow-y: auto; padding-right: 3px; }
     .theme-btn {
       padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; overflow: hidden; text-align: left;
     }
@@ -168,19 +168,9 @@
           <div class="panel-section">
             <div class="section-heading"><h2>内容输入</h2><span id="countHint">0 / 0 字</span></div>
             <div class="input-group">
-              <label for="coverText">第一段 · 封面内容</label>
-              <textarea id="coverText" placeholder="例如：教招面试《做自尊的人》&#10;高分试讲心得">教招面试《做自尊的人》
-高分试讲心得</textarea><button class="clear-field under" data-clear-target="coverText" type="button">清空</button>
-              <p class="helper">标题和正文都可以较长，工具会按段落自动缩小并完整排版到图一。</p>
-            </div>
-            <div class="input-group">
-              <label for="bodyText">第二段 · 正文内容</label>
-              <textarea id="bodyText" placeholder="粘贴正文，工具会自动拆成第 2、3 张图">道法试讲想拿高分，“素材新”绝对是加分项！
-
-我用 2026 年高考刷屏全网的贺永辉素材：一个土鸡蛋接考、婉拒所有捐款、回母校免费补课，一句话“把资源留给真正需要的人”，瞬间打动考官！
-
-课堂互动必须“真”起来：自由发言、小组讨论、情景模拟，让热点素材和沉浸式互动自然连起来。</textarea><button class="clear-field under" data-clear-target="bodyText" type="button">清空</button>
-              <p class="helper">正文会按换行和可读长度自动分到第 2、3 张图。</p>
+              <label for="sourceText">整篇内容</label>
+              <textarea id="sourceText" placeholder="从“教招面试《课程名》高分试讲心得”开始，粘贴心得、固定结尾和完整试讲稿。工具会自动生成三张图。"></textarea><button class="clear-field under" data-clear-target="sourceText" type="button">清空</button>
+              <p class="helper">第 1 张自动保留至“这课试讲稿已整理好，有需要宝子可以找我哈！”，其后的试讲稿自动拆到第 2、3 张。</p>
             </div>
           </div>
 
@@ -190,11 +180,7 @@
               <div><label for="fontSelect">字体</label><select id="fontSelect"><option value="sans">现代黑体</option><option value="serif">清晰宋体</option><option value="rounded">圆润黑体</option></select></div>
               <div><label for="densitySelect">文字密度</label><select id="densitySelect"><option value="comfortable">舒适</option><option value="dense">紧凑</option><option value="airy">留白</option></select></div>
             </div>
-            <div style="margin-top: 15px"><label>视觉主题</label><div class="theme-grid" id="themeGrid">
-              <button class="theme-btn active" data-theme="clean" type="button"><span class="theme-swatch clean"></span><span class="theme-name">清爽留白</span></button>
-              <button class="theme-btn" data-theme="ink" type="button"><span class="theme-swatch ink"></span><span class="theme-name">墨绿重点</span></button>
-              <button class="theme-btn" data-theme="coral" type="button"><span class="theme-swatch coral"></span><span class="theme-name">珊瑚醒目</span></button>
-            </div></div>
+            <div style="margin-top: 15px"><label>视觉主题</label><div class="theme-grid" id="themeGrid"></div></div>
             <div class="switch-row" style="margin-top: 17px"><label for="emojiToggle">保留 Emoji 表情</label><label class="switch"><input id="emojiToggle" type="checkbox" checked><span class="slider"></span></label></div>
           </div>
 
@@ -202,18 +188,18 @@
             <div class="button-row"><button id="exampleBtn" class="btn" type="button">载入示例</button><button id="clearBtn" class="btn" type="button">清空内容</button><button id="saveBtn" class="btn primary" type="button">保存草稿</button></div>
           </div>
         </section>
-        <div class="tip"><b>小提示</b><span>点击“打开图片保存页”，在每张图片上长按，选择“存储到照片”。</span></div>
+        <div class="tip"><b>小提示</b><span>点击“全部导出”后选择保存文件夹，三张 PNG 会一次写入该文件夹。Safari 等不支持文件夹写入的浏览器会遵循自身的多下载规则。</span></div>
       </aside>
 
       <section class="preview-area">
         <div class="preview-head">
-          <div><h1>你的笔记预览</h1><p>封面 + 自动拆分的两张正文图</p></div>
-          <div class="preview-actions"><button id="downloadAllBtn" class="btn primary" type="button">打开图片保存页</button><button id="resetBtn" class="btn" type="button">恢复示例</button></div>
+          <div><h1>你的笔记预览</h1><p>心得首页 + 自动拆分的两张试讲稿图</p></div>
+          <div class="preview-actions"><button id="downloadAllBtn" class="btn primary" type="button">全部导出</button><button id="resetBtn" class="btn" type="button">恢复示例</button></div>
         </div>
         <div class="canvas-grid">
-          <article class="poster-card"><div class="poster-frame"><canvas id="canvas1" width="1080" height="1440"></canvas></div><div class="poster-meta"><span>01 · 封面</span></div></article>
-          <article class="poster-card"><div class="poster-frame"><canvas id="canvas2" width="1080" height="1440"></canvas></div><div class="poster-meta"><span>02 · 正文</span></div></article>
-          <article class="poster-card"><div class="poster-frame"><canvas id="canvas3" width="1080" height="1440"></canvas></div><div class="poster-meta"><span>03 · 正文</span></div></article>
+          <article class="poster-card"><div class="poster-frame"><canvas id="canvas1" width="1080" height="1440"></canvas></div><div class="poster-meta"><span>01 · 心得</span></div></article>
+          <article class="poster-card"><div class="poster-frame"><canvas id="canvas2" width="1080" height="1440"></canvas></div><div class="poster-meta"><span>02 · 试讲稿</span></div></article>
+          <article class="poster-card"><div class="poster-frame"><canvas id="canvas3" width="1080" height="1440"></canvas></div><div class="poster-meta"><span>03 · 试讲稿</span></div></article>
         </div>
         <div class="status-line" id="statusLine">已自动保存到本机浏览器</div>
       </section>
@@ -224,16 +210,17 @@
     (() => {
       const WIDTH = 1080;
       const HEIGHT = 1440;
-      const coverText = document.querySelector('#coverText');
-      const bodyText = document.querySelector('#bodyText');
+      const sourceText = document.querySelector('#sourceText');
       const fontSelect = document.querySelector('#fontSelect');
       const densitySelect = document.querySelector('#densitySelect');
       const emojiToggle = document.querySelector('#emojiToggle');
       const countHint = document.querySelector('#countHint');
       const statusLine = document.querySelector('#statusLine');
       const canvases = [1, 2, 3].map(n => document.querySelector('#canvas' + n));
-      const example = {
-        cover: `🔥教招面试《做自尊的人》高分试讲心得✨
+      const downloadButton = document.querySelector('#downloadAllBtn');
+      let exportFiles = [];
+      let exportFilesReady = false;
+      const example = `🔥教招面试《做自尊的人》高分试讲心得✨
 
 道法试讲想拿高分，“素材新”绝对是加分项！
 
@@ -246,8 +233,9 @@
 
 把“维护尊严—提升自己—尊重他人”的逻辑链串得丝滑流畅！🔗紧扣热点素材+沉浸式互动，这课很难不得高分！💯
 
-这课试讲稿已整理好，有需要宝子可以找我哈！🙋‍♀️`,
-        body: `《人须有自尊》无生试讲逐字稿
+这课试讲稿已整理好，有需要宝子可以找我哈！🙋‍♀️
+
+《人须有自尊》无生试讲逐字稿
 试讲素材：贺永辉高考拒捐案（2026年）
 一、新课导入
 师：上课，同学们好，请坐！
@@ -262,13 +250,32 @@
 师：你认为贺永辉虽然身体有缺陷、家里困难，但不轻看自己，坚信靠自己就能改变命运，这就是自尊。嗯，你抓得很准。贺永辉不因困境而自我否定，坚信奋斗能改变命运，这份对自我价值的肯定，就是自尊的内核——自我尊重。
 师：还有同学想谈谈别人对他的态度吗？好，课代表。
 师：你发现网友从想捐款变成敬佩他，说明他用自己的行动赢得了别人的尊重。不错，你注意到了这个变化。自尊的另一层含义，就是赢得他人的尊重。贺永辉靠自力更生获得了全社会的认可。所以说，自尊是对自我价值的肯定，包括自我尊重和赢得他人的尊重。
-师：好，自尊的内涵我们弄清楚了。那自尊的人到底有哪些表现呢？我们接着往下看。`
-      };
+师：好，自尊的内涵我们弄清楚了。那自尊的人到底有哪些表现呢？我们接着往下看。`;
       const state = { theme: 'clean', font: 'sans', density: 'comfortable', keepEmoji: true };
       const themes = {
-        clean: { bg: '#fffdfa', ink: '#202725', muted: '#6c756f', accent: '#e7ad37', line: '#e9e6de' },
-        ink: { bg: '#f5f8f4', ink: '#20332b', muted: '#5e7267', accent: '#5e9c76', line: '#d8e5db' },
-        coral: { bg: '#fff8f3', ink: '#30231f', muted: '#79635a', accent: '#ed6653', line: '#f0ddd5' }
+        clean: { name:'清爽留白', bg:'#fffdfa', ink:'#202725', muted:'#6c756f', accent:'#e7ad37', line:'#e9e6de', pattern:'corner' },
+        ink: { name:'墨绿重点', bg:'#f5f8f4', ink:'#20332b', muted:'#5e7267', accent:'#5e9c76', line:'#d8e5db', pattern:'grid' },
+        coral: { name:'珊瑚醒目', bg:'#fff8f3', ink:'#30231f', muted:'#79635a', accent:'#ed6653', line:'#f0ddd5', pattern:'circle' },
+        sky: { name:'晴空便签', bg:'#f6fbff', ink:'#1e3445', muted:'#5c7381', accent:'#4e9dd1', line:'#dbeaf4', pattern:'dots' },
+        lilac: { name:'丁香手帐', bg:'#fbf9ff', ink:'#312940', muted:'#756b82', accent:'#9c7cc3', line:'#ebe2f3', pattern:'tape' },
+        matcha: { name:'抹茶笔记', bg:'#fbfdf6', ink:'#2f402a', muted:'#6d7c64', accent:'#89a95b', line:'#e1ead7', pattern:'leaf' },
+        rose: { name:'玫瑰清单', bg:'#fff9fa', ink:'#402b32', muted:'#83666e', accent:'#d88094', line:'#f3dfe4', pattern:'circle' },
+        navy: { name:'海军蓝报刊', bg:'#f7f9fc', ink:'#1e2a3b', muted:'#5e6b7e', accent:'#365f93', line:'#dfe6ef', pattern:'grid' },
+        apricot: { name:'杏子奶油', bg:'#fffaf4', ink:'#48352a', muted:'#806d5f', accent:'#db9858', line:'#f1e3d4', pattern:'tape' },
+        jade: { name:'玉青简报', bg:'#f5fcfa', ink:'#193b35', muted:'#5e7e76', accent:'#3f9b82', line:'#d6ebe5', pattern:'corner' },
+        cocoa: { name:'可可书页', bg:'#fcf8f5', ink:'#40332b', muted:'#7a6b61', accent:'#9a7057', line:'#eadfd7', pattern:'stamp' },
+        lemon: { name:'柠檬便利贴', bg:'#fffef5', ink:'#3f3a24', muted:'#787354', accent:'#d6af32', line:'#efe7bc', pattern:'dots' },
+        slate: { name:'石墨极简', bg:'#fafafa', ink:'#282b30', muted:'#676b72', accent:'#727b88', line:'#e2e4e7', pattern:'grid' },
+        peach: { name:'蜜桃课堂', bg:'#fff8f5', ink:'#452f2a', muted:'#80645d', accent:'#e58f78', line:'#f1ddd6', pattern:'circle' },
+        mint: { name:'薄荷网格', bg:'#f5fcf9', ink:'#203c33', muted:'#60786f', accent:'#65a98d', line:'#d9ece4', pattern:'grid' },
+        plum: { name:'梅子手账', bg:'#fdf9fc', ink:'#3c2938', muted:'#786573', accent:'#ad7399', line:'#eedfe9', pattern:'tape' },
+        ocean: { name:'海盐信笺', bg:'#f5fbfc', ink:'#203a42', muted:'#5c7780', accent:'#4b9cae', line:'#d7eaed', pattern:'wave' },
+        sand: { name:'暖沙杂志', bg:'#fdfbf7', ink:'#40392c', muted:'#786f60', accent:'#b5985b', line:'#ece4d4', pattern:'stamp' },
+        berry: { name:'莓果重点', bg:'#fff8fa', ink:'#422834', muted:'#82606c', accent:'#be637f', line:'#f1dce4', pattern:'corner' },
+        pine: { name:'松林笔记', bg:'#f6faf7', ink:'#263b2e', muted:'#657669', accent:'#4f7f5c', line:'#dce7de', pattern:'leaf' },
+        denim: { name:'丹宁蓝图', bg:'#f7faff', ink:'#273445', muted:'#627188', accent:'#587abb', line:'#dce5f2', pattern:'grid' },
+        orange: { name:'橙光海报', bg:'#fff9f3', ink:'#493424', muted:'#806651', accent:'#e08a3f', line:'#f1e0ce', pattern:'rays' },
+        lavender: { name:'薰衣草页', bg:'#faf9ff', ink:'#302d43', muted:'#6d6a82', accent:'#8274bb', line:'#e5e1f1', pattern:'dots' }
       };
       function fontFamily() {
         if (state.font === 'serif') return '"Songti SC", "SimSun", serif';
@@ -303,9 +310,29 @@
         if (!normalized) return ['', ''];
         const halfway = Math.floor(normalized.length / 2);
         const breaks = [];
-        for (let index = normalized.indexOf('\n'); index >= 0; index = normalized.indexOf('\n', index + 1)) breaks.push(index + 1);
+        const boundary = /\n(?=\s*(?:[一二三四五六七八九十]+、|环节[一二三四五六七八九十]|师：|生：|学生：|教师：))/g;
+        let match;
+        while ((match = boundary.exec(normalized))) breaks.push(match.index + 1);
+        if (!breaks.length) {
+          for (let index = normalized.indexOf('\n'); index >= 0; index = normalized.indexOf('\n', index + 1)) breaks.push(index + 1);
+        }
         const splitAt = breaks.length ? breaks.reduce((best, point) => Math.abs(point - halfway) < Math.abs(best - halfway) ? point : best, breaks[0]) : halfway;
         return [normalized.slice(0, splitAt).trim(), normalized.slice(splitAt).trim()];
+      }
+
+      function splitSource(text) {
+        const normalized = (text || '').replace(/\r/g, '').trim();
+        if (!normalized) return { insight: '', script: '' };
+        const ending = /这课试讲稿已整理好[，,]?\s*有需要宝子可以找我哈[！!]?[^\n]*/;
+        const endingMatch = normalized.match(ending);
+        if (endingMatch && endingMatch.index !== undefined) {
+          const endAt = endingMatch.index + endingMatch[0].length;
+          return { insight: normalized.slice(0, endAt).trim(), script: normalized.slice(endAt).trim() };
+        }
+        const scriptStart = normalized.search(/(?:^|\n)\s*《[^》]+》\s*(?:无生)?试讲(?:逐字)?稿/);
+        return scriptStart > 0
+          ? { insight: normalized.slice(0, scriptStart).trim(), script: normalized.slice(scriptStart).trim() }
+          : { insight: normalized, script: '' };
       }
 
       function drawWrapped(ctx, lines, x, y, lineHeight, color, align = 'left') {
@@ -335,9 +362,50 @@
       function drawBackground(ctx, theme) {
         ctx.fillStyle = theme.bg;
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.save();
         ctx.strokeStyle = theme.line;
+        ctx.fillStyle = theme.line;
         ctx.lineWidth = 3;
-        ctx.strokeRect(38, 38, WIDTH - 76, HEIGHT - 76);
+        if (theme.pattern === 'grid') {
+          ctx.globalAlpha = .8;
+          for (let x = 78; x < WIDTH; x += 72) { ctx.beginPath(); ctx.moveTo(x, 54); ctx.lineTo(x, HEIGHT - 54); ctx.stroke(); }
+          for (let y = 74; y < HEIGHT; y += 72) { ctx.beginPath(); ctx.moveTo(54, y); ctx.lineTo(WIDTH - 54, y); ctx.stroke(); }
+        } else if (theme.pattern === 'dots') {
+          ctx.globalAlpha = .72;
+          for (let x = 76; x < WIDTH; x += 52) for (let y = 76; y < HEIGHT; y += 52) { ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill(); }
+        } else if (theme.pattern === 'circle') {
+          ctx.globalAlpha = .62;
+          ctx.lineWidth = 7;
+          ctx.beginPath(); ctx.arc(950, 160, 134, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(112, 1255, 102, 0, Math.PI * 2); ctx.stroke();
+        } else if (theme.pattern === 'tape') {
+          ctx.globalAlpha = .72;
+          ctx.fillStyle = theme.accent;
+          ctx.fillRect(755, 78, 215, 38);
+          ctx.fillRect(112, 1306, 184, 30);
+        } else if (theme.pattern === 'leaf') {
+          ctx.globalAlpha = .58;
+          ctx.lineWidth = 5;
+          [[910,150],[150,1280]].forEach(([x,y]) => { ctx.beginPath(); ctx.ellipse(x, y, 66, 27, -.65, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x - 55, y + 40); ctx.lineTo(x + 55, y - 42); ctx.stroke(); });
+        } else if (theme.pattern === 'wave') {
+          ctx.globalAlpha = .7;
+          ctx.lineWidth = 5;
+          for (let y = 95; y < HEIGHT; y += 100) { ctx.beginPath(); for (let x = 55; x <= WIDTH - 55; x += 24) { const pointY = y + Math.sin(x / 55) * 10; x === 55 ? ctx.moveTo(x, pointY) : ctx.lineTo(x, pointY); } ctx.stroke(); }
+        } else if (theme.pattern === 'stamp') {
+          ctx.globalAlpha = .63;
+          ctx.lineWidth = 5;
+          ctx.strokeRect(780, 96, 190, 120);
+          ctx.strokeRect(105, 1218, 160, 100);
+        } else if (theme.pattern === 'rays') {
+          ctx.globalAlpha = .52;
+          ctx.lineWidth = 5;
+          for (let angle = -.9; angle <= .35; angle += .13) { ctx.beginPath(); ctx.moveTo(1010, 70); ctx.lineTo(1010 + Math.cos(angle) * 540, 70 + Math.sin(angle) * 540); ctx.stroke(); }
+        } else {
+          ctx.globalAlpha = .8;
+          ctx.strokeRect(38, 38, WIDTH - 76, HEIGHT - 76);
+          ctx.fillRect(70, 1290, 180, 5);
+        }
+        ctx.restore();
         ctx.fillStyle = theme.accent;
         ctx.fillRect(70, 70, 92, 12);
       }
@@ -381,79 +449,102 @@
       }
 
       function render() {
-        const cover = cleanText(coverText.value);
-        const body = cleanText(bodyText.value);
-        const pages = splitBody(body);
-        drawCover(canvases[0], cover);
+        const source = cleanText(sourceText.value);
+        const content = splitSource(source);
+        const pages = splitBody(content.script);
+        drawCover(canvases[0], content.insight);
         drawBody(canvases[1], pages[0]);
         drawBody(canvases[2], pages[1]);
-        const total = cover.length + body.length;
-        countHint.textContent = cover.length + ' / ' + body.length + ' 字';
-        statusLine.textContent = '已自动保存到本机浏览器 · 共 ' + total + ' 字';
+        countHint.textContent = content.insight.length + ' / ' + content.script.length + ' 字';
+        statusLine.textContent = content.script ? '已识别心得和试讲稿 · 已自动保存到本机浏览器 · 共 ' + source.length + ' 字' : '未识别到试讲稿，当前内容将只生成第 1 张';
         persist();
+        prepareExportFiles();
       }
 
       function persist() {
-        try { localStorage.setItem('xhs-three-image-draft-v2', JSON.stringify({ cover: coverText.value, body: bodyText.value, ...state })); } catch (_) {}
+        try { localStorage.setItem('xhs-three-image-draft-v3', JSON.stringify({ source: sourceText.value, ...state })); } catch (_) {}
       }
       function restore() {
         try {
-          const saved = JSON.parse(localStorage.getItem('xhs-three-image-draft-v2') || 'null');
+          const saved = JSON.parse(localStorage.getItem('xhs-three-image-draft-v3') || localStorage.getItem('xhs-three-image-draft-v2') || 'null');
           if (!saved) {
-            coverText.value = example.cover;
-            bodyText.value = example.body;
+            sourceText.value = example;
             return;
           }
-          coverText.value = saved.cover || coverText.value;
-          bodyText.value = saved.body || bodyText.value;
+          sourceText.value = saved.source || [saved.cover, saved.body].filter(Boolean).join('\n\n') || example;
           Object.assign(state, { theme: saved.theme || state.theme, font: saved.font || state.font, density: saved.density || state.density, keepEmoji: saved.keepEmoji !== false });
           fontSelect.value = state.font; densitySelect.value = state.density; emojiToggle.checked = state.keepEmoji;
-          document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.theme === state.theme));
+          if (!themes[state.theme]) state.theme = 'clean';
         } catch (_) {}
       }
-      function showManualSaveView() {
-        const oldView = document.querySelector('#manualSaveView');
-        if (oldView) oldView.remove();
-        const view = document.createElement('div');
-        view.id = 'manualSaveView';
-        view.style.cssText = 'position:fixed;inset:0;z-index:20;overflow:auto;background:#f6f7f4;padding:calc(18px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;';
-        const panel = document.createElement('div');
-        panel.style.cssText = 'max-width:620px;margin:0 auto;background:#fff;border:1px solid #dfe4df;border-radius:8px;padding:18px;box-shadow:0 12px 36px rgba(31,37,35,.12);';
-        const heading = document.createElement('div');
-        heading.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;';
-        const title = document.createElement('strong');
-        title.textContent = '保存三张图片';
-        title.style.fontSize = '18px';
-        const close = document.createElement('button');
-        close.type = 'button';
-        close.textContent = '关闭';
-        close.style.cssText = 'border:0;background:#f1f3f0;border-radius:6px;padding:9px 12px;color:#26302c;font-size:14px;';
-        close.addEventListener('click', () => view.remove());
-        heading.append(title, close);
-        const note = document.createElement('p');
-        note.textContent = '请在每张图片上长按，选择“存储到照片”。';
-        note.style.cssText = 'margin:0 0 14px;color:#6e7672;font-size:14px;line-height:1.5;';
-        panel.append(heading, note);
-        canvases.forEach((canvas, index) => {
-          const label = document.createElement('div');
-          label.textContent = '第 ' + (index + 1) + ' 张';
-          label.style.cssText = 'margin:16px 0 7px;color:#4f5854;font-size:13px;font-weight:650;';
-          const image = document.createElement('img');
-          image.src = canvas.toDataURL('image/png');
-          image.alt = '小红书笔记第 ' + (index + 1) + ' 张';
-          image.draggable = false;
-          image.style.cssText = 'display:block;width:100%;height:auto;border:1px solid #e3e7e3;border-radius:5px;-webkit-touch-callout:default;user-select:none;';
-          panel.append(label, image);
+      function canvasToBlob(canvas) {
+        return new Promise((resolve, reject) => {
+          canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('图片导出失败')), 'image/png');
         });
-        view.appendChild(panel);
-        document.body.appendChild(view);
       }
-      function shareAllImages() {
-        showManualSaveView();
+      async function downloadAllImages() {
+        if (!exportFilesReady) {
+          statusLine.textContent = '图片正在准备，请稍等片刻再点击下载';
+          return;
+        }
+        if (typeof window.showDirectoryPicker === 'function') {
+          try {
+            const directory = await window.showDirectoryPicker({ mode: 'readwrite' });
+            for (const file of exportFiles) {
+              const handle = await directory.getFileHandle(file.name, { create: true });
+              const writable = await handle.createWritable();
+              await writable.write(file);
+              await writable.close();
+            }
+            statusLine.innerHTML = '<strong>三张图片已全部保存</strong> · 已写入你选择的文件夹';
+          } catch (error) {
+            statusLine.textContent = error.name === 'AbortError' ? '已取消保存' : '保存失败，请重试';
+          }
+          return;
+        }
+        exportFiles.forEach((file, index) => {
+          const url = URL.createObjectURL(file);
+          const link = document.createElement('a');
+          link.download = 'xiaohongshu-note-0' + (index + 1) + '.png';
+          link.href = url;
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+        });
+        statusLine.innerHTML = '<strong>已开始下载 3 张 PNG</strong> · 如果浏览器提示允许多个下载，请选择允许';
       }
-      function loadExample() { coverText.value = example.cover; bodyText.value = example.body; render(); }
+      function prepareExportFiles() {
+        exportFilesReady = false;
+        downloadButton.disabled = true;
+        Promise.all(canvases.map(canvasToBlob)).then(blobs => {
+          exportFiles = blobs.map((blob, index) => new File([blob], 'xiaohongshu-note-0' + (index + 1) + '.png', { type: 'image/png' }));
+          exportFilesReady = true;
+          downloadButton.disabled = false;
+        }).catch(() => {
+          exportFiles = [];
+          downloadButton.disabled = false;
+        });
+      }
+      function renderThemeButtons() {
+        const grid = document.querySelector('#themeGrid');
+        grid.replaceChildren(...Object.entries(themes).map(([key, theme]) => {
+          const button = document.createElement('button');
+          button.className = 'theme-btn' + (key === state.theme ? ' active' : '');
+          button.dataset.theme = key;
+          button.type = 'button';
+          button.innerHTML = `<span class="theme-swatch" style="background:linear-gradient(135deg,${theme.bg} 0 64%,${theme.accent} 64%);border-bottom:1px solid ${theme.line}"></span><span class="theme-name"></span>`;
+          button.querySelector('.theme-name').textContent = theme.name;
+          button.addEventListener('click', () => {
+            state.theme = key;
+            renderThemeButtons();
+            render();
+          });
+          return button;
+        }));
+      }
 
-      [coverText, bodyText].forEach(el => el.addEventListener('input', render));
+      function loadExample() { sourceText.value = example; render(); }
+
+      sourceText.addEventListener('input', render);
       document.querySelectorAll('[data-clear-target]').forEach(button => button.addEventListener('click', () => {
         const target = document.querySelector('#' + button.dataset.clearTarget);
         target.value = '';
@@ -463,17 +554,13 @@
       fontSelect.addEventListener('change', e => { state.font = e.target.value; render(); });
       densitySelect.addEventListener('change', e => { state.density = e.target.value; render(); });
       emojiToggle.addEventListener('change', e => { state.keepEmoji = e.target.checked; render(); });
-      document.querySelectorAll('.theme-btn').forEach(btn => btn.addEventListener('click', () => {
-        state.theme = btn.dataset.theme;
-        document.querySelectorAll('.theme-btn').forEach(item => item.classList.toggle('active', item === btn));
-        render();
-      }));
       document.querySelector('#exampleBtn').addEventListener('click', loadExample);
       document.querySelector('#resetBtn').addEventListener('click', loadExample);
-      document.querySelector('#clearBtn').addEventListener('click', () => { coverText.value = ''; bodyText.value = ''; render(); });
+      document.querySelector('#clearBtn').addEventListener('click', () => { sourceText.value = ''; render(); });
       document.querySelector('#saveBtn').addEventListener('click', () => { persist(); statusLine.innerHTML = '<strong>草稿已保存</strong> · 内容只保存在当前浏览器'; });
-      document.querySelector('#downloadAllBtn').addEventListener('click', shareAllImages);
+      document.querySelector('#downloadAllBtn').addEventListener('click', downloadAllImages);
       restore();
+      renderThemeButtons();
       render();
     })();
   </script>
