@@ -130,6 +130,15 @@
     .status-line strong { color: var(--accent); }
     .tip { display: flex; gap: 10px; padding: 13px 15px; background: #f1f5f0; border-left: 3px solid #86af94; color: #53645a; font-size: 12px; line-height: 1.55; border-radius: 5px; }
     .tip b { color: #314d3a; }
+    body.sheet-open { overflow: hidden; }
+    .save-sheet { display: none; position: fixed; inset: 0; z-index: 20; overflow-y: auto; background: #f4f6f5; padding: max(18px, env(safe-area-inset-top)) 14px max(28px, env(safe-area-inset-bottom)); }
+    .save-sheet.open { display: block; }
+    .save-sheet-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -18px -14px 18px; padding: 14px; background: rgba(244,246,245,.96); border-bottom: 1px solid var(--line); backdrop-filter: blur(10px); }
+    .save-sheet-title { margin: 0; font-size: 16px; }
+    .save-sheet-grid { display: grid; gap: 18px; width: min(100%, 560px); margin: 0 auto; }
+    .save-image-card { margin: 0; background: #fff; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; box-shadow: 0 10px 24px rgba(31,37,35,.08); }
+    .save-image-card img { display: block; width: 100%; height: auto; -webkit-touch-callout: default; user-select: auto; -webkit-user-select: auto; }
+    .save-image-card figcaption { padding: 10px 12px; color: var(--muted); font-size: 12px; }
     @media (max-width: 1050px) {
       .workspace { grid-template-columns: 340px minmax(0, 1fr); gap: 22px; }
       .canvas-grid { gap: 12px; }
@@ -205,6 +214,10 @@
       </section>
     </main>
   </div>
+  <section id="saveSheet" class="save-sheet" aria-label="保存图片" aria-modal="true" role="dialog">
+    <div class="save-sheet-head"><h2 class="save-sheet-title">长按图片保存到手机</h2><button id="closeSaveSheet" class="btn" type="button">关闭</button></div>
+    <div id="saveImageGrid" class="save-sheet-grid"></div>
+  </section>
 
   <script>
     (() => {
@@ -218,6 +231,8 @@
       const statusLine = document.querySelector('#statusLine');
       const canvases = [1, 2, 3].map(n => document.querySelector('#canvas' + n));
       const downloadButton = document.querySelector('#downloadAllBtn');
+      const saveSheet = document.querySelector('#saveSheet');
+      const saveImageGrid = document.querySelector('#saveImageGrid');
       let exportFiles = [];
       let exportFilesReady = false;
       const example = `🔥教招面试《做自尊的人》高分试讲心得✨
@@ -482,9 +497,36 @@
           canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('图片导出失败')), 'image/png');
         });
       }
+      function isMobileDevice() {
+        return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      }
+      function openMobileSaveSheet() {
+        saveImageGrid.replaceChildren(...canvases.map((canvas, index) => {
+          const figure = document.createElement('figure');
+          figure.className = 'save-image-card';
+          const image = document.createElement('img');
+          image.src = canvas.toDataURL('image/png');
+          image.alt = `小红书图片 ${index + 1}`;
+          const caption = document.createElement('figcaption');
+          caption.textContent = `第 ${index + 1} 张`;
+          figure.append(image, caption);
+          return figure;
+        }));
+        saveSheet.classList.add('open');
+        document.body.classList.add('sheet-open');
+        statusLine.textContent = '请长按每张图片，选择“存储到照片”';
+      }
+      function closeMobileSaveSheet() {
+        saveSheet.classList.remove('open');
+        document.body.classList.remove('sheet-open');
+      }
       async function downloadAllImages() {
         if (!exportFilesReady) {
           statusLine.textContent = '图片正在准备，请稍等片刻再点击下载';
+          return;
+        }
+        if (isMobileDevice()) {
+          openMobileSaveSheet();
           return;
         }
         if (typeof window.showDirectoryPicker === 'function') {
@@ -559,6 +601,8 @@
       document.querySelector('#clearBtn').addEventListener('click', () => { sourceText.value = ''; render(); });
       document.querySelector('#saveBtn').addEventListener('click', () => { persist(); statusLine.innerHTML = '<strong>草稿已保存</strong> · 内容只保存在当前浏览器'; });
       document.querySelector('#downloadAllBtn').addEventListener('click', downloadAllImages);
+      document.querySelector('#closeSaveSheet').addEventListener('click', closeMobileSaveSheet);
+      saveSheet.addEventListener('click', event => { if (event.target === saveSheet) closeMobileSaveSheet(); });
       restore();
       renderThemeButtons();
       render();
