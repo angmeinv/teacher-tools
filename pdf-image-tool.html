@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF 前四页导出图片</title>
+  <style>
+    :root { color-scheme: light; --ink:#17212b; --muted:#66727d; --line:#d9e0e5; --surface:#f5f7f8; --accent:#0f766e; --accent-dark:#115e59; --danger:#b42318; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-width:320px; background:#fff; color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { width:min(900px,calc(100% - 40px)); margin:42px auto 64px; }
+    header { border-bottom:1px solid var(--line); padding-bottom:24px; margin-bottom:28px; }
+    h1 { margin:0 0 8px; font-size:clamp(25px,4vw,36px); line-height:1.2; }
+    .sub,.note { color:var(--muted); }
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:22px; }
+    button,.file-label { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:6px; cursor:pointer; font:inherit; padding:10px 14px; }
+    button:hover,.file-label:hover { border-color:var(--accent); }
+    button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+    button.primary:hover { background:var(--accent-dark); }
+    button:disabled { cursor:not-allowed; opacity:.45; }
+    input[type=file] { position:absolute; width:1px; height:1px; opacity:0; }
+    .stats { display:flex; gap:22px; color:var(--muted); margin:14px 0 28px; }
+    .stats strong { color:var(--ink); font-size:20px; margin-right:4px; }
+    .progress-wrap { display:none; margin:18px 0 24px; }
+    .progress-wrap.visible { display:block; }
+    .progress-row { display:flex; justify-content:space-between; margin-bottom:8px; }
+    .progress-track { height:9px; background:var(--surface); border-radius:8px; overflow:hidden; }
+    .progress-bar { height:100%; width:0; background:var(--accent); transition:width .15s ease; }
+    .file-list { border-top:1px solid var(--line); }
+    .file-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; padding:12px 0; border-bottom:1px solid var(--line); }
+    .file-name,.file-path { overflow-wrap:anywhere; }
+    .file-path { color:var(--muted); font-size:12px; }
+    .status { color:var(--muted); white-space:nowrap; }.status.done{color:var(--accent-dark)}.status.error{color:var(--danger)}
+    .empty { color:var(--muted); padding:30px 0; text-align:center; }
+    .note { font-size:13px; margin-top:18px; }
+    @media (max-width:520px) { main{width:calc(100% - 28px);margin-top:26px}.stats{gap:14px;flex-wrap:wrap}.file-row{grid-template-columns:1fr;gap:3px}.status{white-space:normal} }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>PDF 前四页导出图片</h1>
+      <p class="sub">选择一个文件夹或多个 PDF，在浏览器本地提取每个 PDF 的前四页。</p>
+    </header>
+
+    <div class="toolbar">
+      <label class="file-label" for="folderInput">选择 PDF 文件夹</label>
+      <input id="folderInput" type="file" webkitdirectory directory multiple>
+      <label class="file-label" for="fileInput">选择 PDF 文件</label>
+      <input id="fileInput" type="file" multiple>
+      <button id="exportNested" class="primary" type="button" disabled>按 PDF 分文件夹导出</button>
+      <button id="exportFlat" type="button" disabled>导出所有照片到一个文件夹</button>
+      <button id="clearButton" type="button" disabled>清空</button>
+    </div>
+
+    <div class="stats" aria-live="polite">
+      <span><strong id="pdfCount">0</strong> 个 PDF</span>
+      <span><strong id="pageCount">0</strong> 张待导出图片</span>
+    </div>
+
+    <section id="progressWrap" class="progress-wrap" aria-live="polite">
+      <div class="progress-row"><span id="progressText">准备中</span><span id="progressPercent">0%</span></div>
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progressBar" class="progress-bar"></div></div>
+    </section>
+
+    <div id="fileList" class="file-list"><div class="empty">还没有选择 PDF</div></div>
+    <p class="note">每个 PDF 最多导出前四页；少于四页的 PDF 只导出实际页数。文件不会上传到服务器。</p>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    (() => {
+      const folderInput = document.getElementById('folderInput');
+      const fileInput = document.getElementById('fileInput');
+      const exportNested = document.getElementById('exportNested');
+      const exportFlat = document.getElementById('exportFlat');
+      const clearButton = document.getElementById('clearButton');
+      const fileList = document.getElementById('fileList');
+      const pdfCount = document.getElementById('pdfCount');
+      const pageCount = document.getElementById('pageCount');
+      const progressWrap = document.getElementById('progressWrap');
+      const progressBar = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
+      const progressPercent = document.getElementById('progressPercent');
+      const progressTrack = progressWrap.querySelector('[role=progressbar]');
+      let files = [];
+
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+      function isPdf(file) { return /\.pdf$/i.test(file.name); }
+      function relativeName(file) { return file.webkitRelativePath || file.name; }
+      function safePart(value) { return value.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim() || 'unnamed'; }
+      function baseName(file) { return safePart(file.name.replace(/\.pdf$/i, '')); }
+      function escapeHtml(value) { return value.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+      function renderList() {
+        if (!files.length) { fileList.innerHTML = '<div class="empty">还没有选择 PDF</div>'; return; }
+        fileList.innerHTML = files.map((file, i) => `<div class="file-row"><div><div class="file-name">${escapeHtml(file.name)}</div><div class="file-path">${escapeHtml(relativeName(file))}</div></div><span id="status-${i}" class="status">待处理</span></div>`).join('');
+      }
+      function setSelected(selected) {
+        files = Array.from(selected).filter(isPdf);
+        pdfCount.textContent = files.length; pageCount.textContent = files.length * 4;
+        exportNested.disabled = !files.length; exportFlat.disabled = !files.length; clearButton.disabled = !files.length;
+        progressWrap.classList.remove('visible'); renderList();
+      }
+      function setProgress(done, total, text) {
+        const percent = total ? Math.round(done / total * 100) : 0;
+        progressBar.style.width = `${percent}%`; progressPercent.textContent = `${percent}%`; progressText.textContent = text;
+        progressTrack.setAttribute('aria-valuenow', percent);
+      }
+      function setStatus(index, text, kind) { const node = document.getElementById(`status-${index}`); node.textContent = text; node.className = `status ${kind || ''}`; }
+      async function pagePng(pdf, pageNumber) {
+        const page = await pdf.getPage(pageNumber); const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement('canvas'); canvas.width = viewport.width; canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      }
+      async function chooseOutputFolder() { return window.showDirectoryPicker ? window.showDirectoryPicker({ mode: 'readwrite' }) : null; }
+      async function saveImage(folder, path, blob) {
+        let current = folder;
+        for (const part of path.split('/').filter(Boolean).slice(0, -1)) current = await current.getDirectoryHandle(part, { create: true });
+        const file = await current.getFileHandle(path.split('/').pop(), { create: true });
+        const writable = await file.createWritable(); await writable.write(blob); await writable.close();
+      }
+      function downloadBlob(blob, filename) {
+        const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      }
+      async function exportImages(flat) {
+        exportNested.disabled = true; exportFlat.disabled = true; clearButton.disabled = true; progressWrap.classList.add('visible');
+        let outputFolder;
+        try { outputFolder = await chooseOutputFolder(); }
+        catch (error) { if (error.name === 'AbortError') { restoreButtons(); return; } throw error; }
+        let done = 0; let imageTotal = 0; const errors = [];
+        setProgress(0, files.length, '正在准备...');
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]; setStatus(i, '处理中', '');
+          try {
+            const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+            const pages = Math.min(4, pdf.numPages);
+            for (let p = 1; p <= pages; p++) {
+              const blob = await pagePng(pdf, p); const pageName = `page-${String(p).padStart(2, '0')}.png`;
+              const path = flat ? `${baseName(file)}-${pageName}` : `${relativeName(file).replace(/\.pdf$/i, '')}/${pageName}`;
+              if (outputFolder) await saveImage(outputFolder, path, blob); else downloadBlob(blob, path.replace(/[\\/]/g, '__'));
+              imageTotal++;
+            }
+            setStatus(i, `${pages} 页`, 'done');
+          } catch (error) { setStatus(i, '失败', 'error'); errors.push(`${relativeName(file)}: ${error.message || error}`); }
+          done++; setProgress(done, files.length, `正在处理 ${done} / ${files.length} 个 PDF`);
+        }
+        if (errors.length) {
+          const errorBlob = new Blob([errors.join('\n')], { type: 'text/plain;charset=utf-8' });
+          if (outputFolder) await saveImage(outputFolder, 'conversion-errors.txt', errorBlob); else downloadBlob(errorBlob, 'conversion-errors.txt');
+        }
+        progressText.textContent = `完成：${imageTotal} 张图片`; restoreButtons();
+      }
+      function restoreButtons() { exportNested.disabled = !files.length; exportFlat.disabled = !files.length; clearButton.disabled = !files.length; }
+
+      folderInput.addEventListener('change', () => setSelected(folderInput.files));
+      fileInput.addEventListener('change', () => setSelected(fileInput.files));
+      exportNested.addEventListener('click', () => exportImages(false));
+      exportFlat.addEventListener('click', () => exportImages(true));
+      clearButton.addEventListener('click', () => { folderInput.value = ''; fileInput.value = ''; files = []; pdfCount.textContent = '0'; pageCount.textContent = '0'; restoreButtons(); renderList(); progressWrap.classList.remove('visible'); });
+    })();
+  </script>
+</body>
+</html>
