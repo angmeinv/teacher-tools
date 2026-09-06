@@ -27,9 +27,11 @@
     .progress-track { height:9px; background:var(--surface); border-radius:8px; overflow:hidden; }
     .progress-bar { height:100%; width:0; background:var(--accent); transition:width .15s ease; }
     .file-list { border-top:1px solid var(--line); }
-    .file-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; padding:12px 0; border-bottom:1px solid var(--line); }
+    .file-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:14px; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); }
     .file-name,.file-path { overflow-wrap:anywhere; }
     .file-path { color:var(--muted); font-size:12px; }
+    .page-choice { display:flex; align-items:center; gap:6px; color:var(--muted); white-space:nowrap; }
+    .page-choice input { width:58px; border:1px solid var(--line); border-radius:4px; color:var(--ink); font:inherit; padding:5px 6px; }
     .status { color:var(--muted); white-space:nowrap; }.status.done{color:var(--accent-dark)}.status.error{color:var(--danger)}
     .empty { color:var(--muted); padding:30px 0; text-align:center; }
     .note { font-size:13px; margin-top:18px; }
@@ -40,7 +42,7 @@
   <main>
     <header>
       <h1>PDF 前四页导出图片</h1>
-      <p class="sub">选择一个文件夹或多个 PDF，在浏览器本地提取每个 PDF 的前四页。</p>
+      <p class="sub">选择一个文件夹或多个 PDF，为每份 PDF 设置导出页数后，按文件夹保存图片。</p>
     </header>
 
     <div class="toolbar">
@@ -64,7 +66,7 @@
     </section>
 
     <div id="fileList" class="file-list"><div class="empty">还没有选择 PDF</div></div>
-    <p class="note">每个 PDF 最多导出前四页；少于四页的 PDF 只导出实际页数。文件不会上传到服务器。</p>
+    <p class="note">每份 PDF 默认导出前四页，可按实际总页数单独调整。文件不会上传到服务器。</p>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -92,15 +94,35 @@
       function safePart(value) { return value.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim() || 'unnamed'; }
       function baseName(file) { return safePart(file.name.replace(/\.pdf$/i, '')); }
       function escapeHtml(value) { return value.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+      function updateStats() {
+        pdfCount.textContent = files.length;
+        pageCount.textContent = files.reduce((sum, item) => sum + (item.exportPages || 0), 0);
+      }
       function renderList() {
         if (!files.length) { fileList.innerHTML = '<div class="empty">还没有选择 PDF</div>'; return; }
-        fileList.innerHTML = files.map((file, i) => `<div class="file-row"><div><div class="file-name">${escapeHtml(file.name)}</div><div class="file-path">${escapeHtml(relativeName(file))}</div></div><span id="status-${i}" class="status">待处理</span></div>`).join('');
+        fileList.innerHTML = files.map((item, i) => {
+          const detail = item.error ? '无法读取 PDF' : item.totalPages ? `共 ${item.totalPages} 页` : '正在读取页数...';
+          const choice = item.totalPages ? `<label class="page-choice">导出前 <input data-page-input="${i}" type="number" min="1" max="${item.totalPages}" value="${item.exportPages}"> 页</label>` : '<span class="page-choice">读取中</span>';
+          return `<div class="file-row"><div><div class="file-name">${escapeHtml(item.file.name)}</div><div class="file-path">${escapeHtml(relativeName(item.file))} · ${detail}</div></div>${choice}<span id="status-${i}" class="status">待处理</span></div>`;
+        }).join('');
+        fileList.querySelectorAll('[data-page-input]').forEach(input => input.addEventListener('change', () => {
+          const item = files[Number(input.dataset.pageInput)];
+          const value = Math.max(1, Math.min(item.totalPages, Number(input.value) || 1));
+          item.exportPages = value; input.value = value; updateStats();
+        }));
       }
-      function setSelected(selected) {
-        files = Array.from(selected).filter(isPdf);
-        pdfCount.textContent = files.length; pageCount.textContent = files.length * 4;
+      async function setSelected(selected) {
+        files = Array.from(selected).filter(isPdf).map(file => ({ file, totalPages: null, exportPages: 0, error: false }));
+        updateStats();
         exportNested.disabled = !files.length; exportFlat.disabled = !files.length; clearButton.disabled = !files.length;
         progressWrap.classList.remove('visible'); renderList();
+        await Promise.all(files.map(async item => {
+          try {
+            const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await item.file.arrayBuffer()) }).promise;
+            item.totalPages = pdf.numPages; item.exportPages = Math.min(4, pdf.numPages);
+          } catch (error) { item.error = true; }
+        }));
+        updateStats(); renderList(); restoreButtons();
       }
       function setProgress(done, total, text) {
         const percent = total ? Math.round(done / total * 100) : 0;
@@ -133,10 +155,10 @@
         let done = 0; let imageTotal = 0; const errors = [];
         setProgress(0, files.length, '正在准备...');
         for (let i = 0; i < files.length; i++) {
-          const file = files[i]; setStatus(i, '处理中', '');
+          const item = files[i]; const file = item.file; setStatus(i, '处理中', '');
           try {
             const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-            const pages = Math.min(4, pdf.numPages);
+            const pages = Math.min(item.exportPages, pdf.numPages);
             for (let p = 1; p <= pages; p++) {
               const blob = await pagePng(pdf, p); const pageName = `page-${String(p).padStart(2, '0')}.png`;
               const path = flat ? `${baseName(file)}-${pageName}` : `${relativeName(file).replace(/\.pdf$/i, '')}/${pageName}`;
@@ -153,13 +175,16 @@
         }
         progressText.textContent = `完成：${imageTotal} 张图片`; restoreButtons();
       }
-      function restoreButtons() { exportNested.disabled = !files.length; exportFlat.disabled = !files.length; clearButton.disabled = !files.length; }
+      function restoreButtons() {
+        const ready = files.length > 0 && files.every(item => item.totalPages && !item.error);
+        exportNested.disabled = !ready; exportFlat.disabled = !ready; clearButton.disabled = !files.length;
+      }
 
       folderInput.addEventListener('change', () => setSelected(folderInput.files));
       fileInput.addEventListener('change', () => setSelected(fileInput.files));
       exportNested.addEventListener('click', () => exportImages(false));
       exportFlat.addEventListener('click', () => exportImages(true));
-      clearButton.addEventListener('click', () => { folderInput.value = ''; fileInput.value = ''; files = []; pdfCount.textContent = '0'; pageCount.textContent = '0'; restoreButtons(); renderList(); progressWrap.classList.remove('visible'); });
+      clearButton.addEventListener('click', () => { folderInput.value = ''; fileInput.value = ''; files = []; updateStats(); restoreButtons(); renderList(); progressWrap.classList.remove('visible'); });
     })();
   </script>
 </body>
