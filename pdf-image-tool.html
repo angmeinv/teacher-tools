@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PDF 前四页导出图片</title>
+  <title>PDF 指定页导出图片</title>
   <style>
     :root { color-scheme: light; --ink:#17212b; --muted:#66727d; --line:#d9e0e5; --surface:#f5f7f8; --accent:#0f766e; --accent-dark:#115e59; --danger:#b42318; }
     * { box-sizing: border-box; }
@@ -41,8 +41,8 @@
 <body>
   <main>
     <header>
-      <h1>PDF 前四页导出图片</h1>
-      <p class="sub">选择一个文件夹或多个 PDF，为每份 PDF 设置导出页数后，按文件夹保存图片。</p>
+      <h1>PDF 指定页导出图片</h1>
+      <p class="sub">选择一个文件夹或多个 PDF，为每份 PDF 设置导出页码范围后，按文件夹保存图片。</p>
     </header>
 
     <div class="toolbar">
@@ -66,7 +66,7 @@
     </section>
 
     <div id="fileList" class="file-list"><div class="empty">还没有选择 PDF</div></div>
-    <p class="note">每份 PDF 默认导出前四页，可按实际总页数单独调整。文件不会上传到服务器。</p>
+    <p class="note">每份 PDF 默认导出第 1 至 4 页，可按实际总页数单独调整起止页。文件不会上传到服务器。</p>
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -96,30 +96,41 @@
       function escapeHtml(value) { return value.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
       function updateStats() {
         pdfCount.textContent = files.length;
-        pageCount.textContent = files.reduce((sum, item) => sum + (item.exportPages || 0), 0);
+        pageCount.textContent = files.reduce((sum, item) => sum + (item.endPage ? item.endPage - item.startPage + 1 : 0), 0);
       }
       function renderList() {
         if (!files.length) { fileList.innerHTML = '<div class="empty">还没有选择 PDF</div>'; return; }
         fileList.innerHTML = files.map((item, i) => {
           const detail = item.error ? '无法读取 PDF' : item.totalPages ? `共 ${item.totalPages} 页` : '正在读取页数...';
-          const choice = item.totalPages ? `<label class="page-choice">导出前 <input data-page-input="${i}" type="number" min="1" max="${item.totalPages}" value="${item.exportPages}"> 页</label>` : '<span class="page-choice">读取中</span>';
+          const choice = item.totalPages ? `<div class="page-choice">第 <input data-start-page="${i}" aria-label="起始页" type="number" min="1" max="${item.totalPages}" value="${item.startPage}"> 至 <input data-end-page="${i}" aria-label="结束页" type="number" min="1" max="${item.totalPages}" value="${item.endPage}"> 页</div>` : '<span class="page-choice">读取中</span>';
           return `<div class="file-row"><div><div class="file-name">${escapeHtml(item.file.name)}</div><div class="file-path">${escapeHtml(relativeName(item.file))} · ${detail}</div></div>${choice}<span id="status-${i}" class="status">待处理</span></div>`;
         }).join('');
-        fileList.querySelectorAll('[data-page-input]').forEach(input => input.addEventListener('change', () => {
-          const item = files[Number(input.dataset.pageInput)];
-          const value = Math.max(1, Math.min(item.totalPages, Number(input.value) || 1));
-          item.exportPages = value; input.value = value; updateStats();
+        fileList.querySelectorAll('[data-start-page]').forEach(input => input.addEventListener('change', () => {
+          const item = files[Number(input.dataset.startPage)];
+          item.startPage = Math.max(1, Math.min(item.totalPages, Number(input.value) || 1));
+          if (item.startPage > item.endPage) item.endPage = item.startPage;
+          input.value = item.startPage;
+          fileList.querySelector(`[data-end-page="${input.dataset.startPage}"]`).value = item.endPage;
+          updateStats();
+        }));
+        fileList.querySelectorAll('[data-end-page]').forEach(input => input.addEventListener('change', () => {
+          const item = files[Number(input.dataset.endPage)];
+          item.endPage = Math.max(1, Math.min(item.totalPages, Number(input.value) || 1));
+          if (item.endPage < item.startPage) item.startPage = item.endPage;
+          input.value = item.endPage;
+          fileList.querySelector(`[data-start-page="${input.dataset.endPage}"]`).value = item.startPage;
+          updateStats();
         }));
       }
       async function setSelected(selected) {
-        files = Array.from(selected).filter(isPdf).map(file => ({ file, totalPages: null, exportPages: 0, error: false }));
+        files = Array.from(selected).filter(isPdf).map(file => ({ file, totalPages: null, startPage: 1, endPage: 0, error: false }));
         updateStats();
         exportNested.disabled = !files.length; exportFlat.disabled = !files.length; clearButton.disabled = !files.length;
         progressWrap.classList.remove('visible'); renderList();
         await Promise.all(files.map(async item => {
           try {
             const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await item.file.arrayBuffer()) }).promise;
-            item.totalPages = pdf.numPages; item.exportPages = Math.min(4, pdf.numPages);
+            item.totalPages = pdf.numPages; item.endPage = Math.min(4, pdf.numPages);
           } catch (error) { item.error = true; }
         }));
         updateStats(); renderList(); restoreButtons();
@@ -158,8 +169,10 @@
           const item = files[i]; const file = item.file; setStatus(i, '处理中', '');
           try {
             const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-            const pages = Math.min(item.exportPages, pdf.numPages);
-            for (let p = 1; p <= pages; p++) {
+            const startPage = Math.max(1, Math.min(item.startPage, pdf.numPages));
+            const endPage = Math.max(startPage, Math.min(item.endPage, pdf.numPages));
+            const pages = endPage - startPage + 1;
+            for (let p = startPage; p <= endPage; p++) {
               const blob = await pagePng(pdf, p); const pageName = `page-${String(p).padStart(2, '0')}.png`;
               const path = flat ? `${baseName(file)}-${pageName}` : `${relativeName(file).replace(/\.pdf$/i, '')}/${pageName}`;
               if (outputFolder) await saveImage(outputFolder, path, blob); else downloadBlob(blob, path.replace(/[\\/]/g, '__'));
