@@ -112,6 +112,9 @@
       let previewItem = null;
       let previewPdf = null;
       let files = [];
+      const exportRuns = new Map();
+      const exportHistory = new Map();
+      let outputFolderHandle = null;
 
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
@@ -119,8 +122,19 @@
       function relativeName(file) { return file.webkitRelativePath || file.name; }
       function safePart(value) { return value.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim() || 'unnamed'; }
       function baseName(file) { return safePart(file.name.replace(/\.pdf$/i, '')); }
+      function fileKey(file) { return `${relativeName(file)}|${file.size}|${file.lastModified}`; }
       function nestedBasePath(file) {
         return relativeName(file).replace(/\.pdf$/i, '').split(/[\\/]+/).filter(Boolean).map(safePart).join('/');
+      }
+      async function titleFolder(pdf, file) {
+        try {
+          const metadata = await pdf.getMetadata();
+          const infoTitle = metadata && metadata.info && metadata.info.Title;
+          const catalogTitle = metadata && metadata.metadata && metadata.metadata.get('dc:title');
+          const title = typeof infoTitle === 'string' && infoTitle.trim() ? infoTitle : catalogTitle;
+          if (typeof title === 'string' && title.trim()) return safePart(title);
+        } catch (_) {}
+        return baseName(file);
       }
       function escapeHtml(value) { return value.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
       function updateStats() {
@@ -196,11 +210,29 @@
         return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       }
       async function chooseOutputFolder() { return window.showDirectoryPicker ? window.showDirectoryPicker({ mode: 'readwrite' }) : null; }
+      async function getOutputFolder() {
+        if (outputFolderHandle) {
+          try {
+            const permission = await outputFolderHandle.queryPermission({ mode: 'readwrite' });
+            if (permission === 'granted' || await outputFolderHandle.requestPermission({ mode: 'readwrite' }) === 'granted') return outputFolderHandle;
+          } catch (_) { outputFolderHandle = null; }
+        }
+        outputFolderHandle = await chooseOutputFolder();
+        return outputFolderHandle;
+      }
       async function saveImage(folder, path, blob) {
         let current = folder;
         for (const part of path.split('/').filter(Boolean).slice(0, -1)) current = await current.getDirectoryHandle(part, { create: true });
         const file = await current.getFileHandle(path.split('/').pop(), { create: true });
         const writable = await file.createWritable(); await writable.write(blob); await writable.close();
+      }
+      async function moveImage(folder, fromPath, toPath) {
+        let sourceFolder = folder;
+        const sourceParts = fromPath.split('/').filter(Boolean);
+        for (const part of sourceParts.slice(0, -1)) sourceFolder = await sourceFolder.getDirectoryHandle(part);
+        const sourceFile = await sourceFolder.getFileHandle(sourceParts[sourceParts.length - 1]);
+        await saveImage(folder, toPath, await sourceFile.getFile());
+        await sourceFolder.removeEntry(sourceParts[sourceParts.length - 1]);
       }
       function downloadBlob(blob, filename) {
         const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click();
@@ -209,7 +241,9 @@
       async function exportImages(flat) {
         exportNested.disabled = true; exportFlat.disabled = true; clearButton.disabled = true; progressWrap.classList.add('visible');
         let outputFolder;
-        try { outputFolder = await chooseOutputFolder(); }
+        try {
+          outputFolder = await getOutputFolder();
+        }
         catch (error) { if (error.name === 'AbortError') { restoreButtons(); return; } throw error; }
         let done = 0; let imageTotal = 0; const errors = [];
         setProgress(0, files.length, '正在准备...');
@@ -217,14 +251,31 @@
           const item = files[i]; const file = item.file; setStatus(i, '处理中', '');
           try {
             const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+            const folderName = flat ? '' : await titleFolder(pdf, file);
+            const runNumber = (exportRuns.get(fileKey(file)) || 0) + 1;
+            const history = exportHistory.get(fileKey(file));
+            if (!flat && runNumber === 2 && outputFolder && history) {
+              for (const pageNumber of history.pages) {
+                const pageName = `page-${String(pageNumber).padStart(2, '0')}.png`;
+                await moveImage(outputFolder, `${history.folderName}/${pageName}`, `${history.folderName}/01/${pageName}`);
+              }
+            }
             const startPage = Math.max(1, Math.min(item.startPage, pdf.numPages));
             const endPage = Math.max(startPage, Math.min(item.endPage, pdf.numPages));
             const pages = endPage - startPage + 1;
             for (let p = startPage; p <= endPage; p++) {
               const blob = await pagePng(pdf, p); const pageName = `page-${String(p).padStart(2, '0')}.png`;
-              const path = flat ? `${baseName(file)}-${pageName}` : `${nestedBasePath(file)}/${pageName}`;
+              const runFolder = String(runNumber).padStart(2, '0');
+              const path = flat ? `${baseName(file)}-${pageName}` : `${folderName}/${runNumber === 1 ? '' : `${runFolder}/`}${pageName}`;
               if (outputFolder) await saveImage(outputFolder, path, blob); else downloadBlob(blob, path.replace(/[\\/]/g, '__'));
               imageTotal++;
+            }
+            if (!flat) {
+              exportRuns.set(fileKey(file), runNumber);
+              if (runNumber === 1) exportHistory.set(fileKey(file), {
+                folderName,
+                pages: Array.from({ length: pages }, (_, index) => startPage + index)
+              });
             }
             setStatus(i, `${pages} 页`, 'done');
           } catch (error) {
@@ -249,7 +300,7 @@
       fileInput.addEventListener('change', () => setSelected(fileInput.files));
       exportNested.addEventListener('click', () => exportImages(false));
       exportFlat.addEventListener('click', () => exportImages(true));
-      clearButton.addEventListener('click', () => { folderInput.value = ''; fileInput.value = ''; files = []; updateStats(); restoreButtons(); renderList(); progressWrap.classList.remove('visible'); });
+      clearButton.addEventListener('click', () => { folderInput.value = ''; fileInput.value = ''; files = []; exportRuns.clear(); exportHistory.clear(); outputFolderHandle = null; updateStats(); restoreButtons(); renderList(); progressWrap.classList.remove('visible'); });
       document.getElementById('closePreview').addEventListener('click', () => { previewModal.classList.remove('visible'); previewPdf = null; previewItem = null; });
       document.getElementById('prevPreview').addEventListener('click', () => { previewPage.value = Math.max(1, Number(previewPage.value || 1) - 1); renderPreviewPage(); });
       document.getElementById('nextPreview').addEventListener('click', () => { previewPage.value = Math.min(previewPdf ? previewPdf.numPages : 1, Number(previewPage.value || 1) + 1); renderPreviewPage(); });
