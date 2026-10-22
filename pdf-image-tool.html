@@ -178,14 +178,14 @@
         progressWrap.classList.remove('visible'); renderList();
         await Promise.all(files.map(async item => {
           try {
-            const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await item.file.arrayBuffer()) }).promise;
+            const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await item.file.arrayBuffer()), disableWorker: true }).promise;
             item.pdf = pdf; item.totalPages = pdf.numPages; item.endPage = Math.min(4, pdf.numPages);
           } catch (error) { item.error = true; }
         }));
         updateStats(); renderList(); restoreButtons();
       }
       async function openPreview(item) {
-        previewItem = item; previewPdf = item.pdf || await pdfjsLib.getDocument({ data: new Uint8Array(await item.file.arrayBuffer()) }).promise;
+        previewItem = item; previewPdf = item.pdf || await pdfjsLib.getDocument({ data: new Uint8Array(await item.file.arrayBuffer()), disableWorker: true }).promise;
         previewTitle.textContent = `${item.file.name} · 预览`;
         previewPage.max = previewPdf.numPages; previewPage.value = item.startPage || 1; previewTotal.textContent = `共 ${previewPdf.numPages} 页`;
         previewModal.classList.add('visible'); await renderPreviewPage();
@@ -250,7 +250,7 @@
         for (let i = 0; i < files.length; i++) {
           const item = files[i]; const file = item.file; setStatus(i, '处理中', '');
           try {
-            const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+            const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), disableWorker: true }).promise;
             const folderName = flat ? '' : await titleFolder(pdf, file);
             const runNumber = (exportRuns.get(fileKey(file)) || 0) + 1;
             const history = exportHistory.get(fileKey(file));
