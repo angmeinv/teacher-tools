@@ -1343,7 +1343,14 @@
     }
 
     function selectedFontName() {
-      return els.font.value.split(',')[0].replace(/["']/g, '').trim();
+      const selected = els.font.value.split(',')[0].replace(/["']/g, '').trim();
+      const wordFonts = {
+        'Songti SC': 'SimSun', 'STSong': 'SimSun',
+        'Kaiti SC': 'KaiTi', 'STKaiti': 'KaiTi',
+        'PingFang SC': 'Microsoft YaHei', 'Heiti SC': 'SimHei', 'STHeiti': 'SimHei',
+        '-apple-system': 'Microsoft YaHei', 'Hiragino Sans GB': 'Microsoft YaHei'
+      };
+      return wordFonts[selected] || selected;
     }
 
     function nearestWordHighlight(hex) {
